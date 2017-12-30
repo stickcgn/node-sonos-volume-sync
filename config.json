@@ -1,0 +1,8 @@
+{
+	"port": 5007,
+	"syncLatency": 1000,
+	"nodeSonosHttpApi": "http://localhost:5005",
+	"volumeFactors": {
+		"Wohnzimmer": 1.2
+	}
+}

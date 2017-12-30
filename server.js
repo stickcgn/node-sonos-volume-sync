@@ -1,15 +1,6 @@
 const http = require('http');
+const config = require('./config.json');
 
-// TODO: beim topology change muss die volume des coordinators verteilt werden
-
-console.log("Starting server")
-
-const TIMEOUT = 1000;
-const SONOS_API_BASE_URL = "http://localhost:5005";
-const FACTORS = {
-	"Wohnzimmer": 1.2
-};
-const PORT = 5007;
 var groups = [];
 var syncTimeout = null;
 
@@ -30,7 +21,7 @@ const httpRequest = function(url) {
 
 const topologyChange = (zones) => {
 	groups = zones.filter((zone) => zone.members.length > 1);
-	console.log("> topologyChange: " + groups.length + " groups");
+	console.log("topologyChange, now " + groups.length + " groups");
 	// Sync all rooms with the coordinator	
 	groups.forEach((group) => {
 		syncGroup(group, group.coordinator.state.volume, group.coordinator.roomName);
@@ -50,28 +41,26 @@ const volumeChange = (data) => {
 		syncTimeout = setTimeout(() => {
 			syncTimeout = null;
 			syncGroup(groupToSync, data.newVolume, data.roomName);
-		}, TIMEOUT);
+		}, config.syncLatency);
 	}
 };
 
 const syncGroup = (group, newVolume, origin) => {
-	console.log("syncing to " + newVolume);
 	const promises = group.members
 		.filter((member) => member.roomName !== origin)
 		.map((member) => {
 			const destinationVolume = harmonizeVolume(origin, member.roomName, newVolume);
-			console.log('> about to change ' + member.roomName + ' to ' + destinationVolume);
-			return httpRequest(SONOS_API_BASE_URL + "/" + member.roomName + "/volume/" + destinationVolume);
+			return httpRequest(config.nodeSonosHttpApi + "/" + member.roomName + "/volume/" + destinationVolume);
 		});
 	Promise.all(promises).catch((err) => {
-		console.log('> syncing err', err);
+		console.log('syncing error', err);
 	});
 };
 
 const harmonizeVolume = (origin, destination, volume) => {
-	const baseVolume = Math.round(volume / (FACTORS[origin] || 1.0));
-	const destinationVolume = Math.round(baseVolume * (FACTORS[destination] || 1.0));
-	console.log("> " + origin, volume, " -> ", destination, destinationVolume);
+	const baseVolume = Math.round(volume / (config.volumeFactors[origin] || 1.0));
+	const destinationVolume = Math.round(baseVolume * (config.volumeFactors[destination] || 1.0));
+	console.log(origin, volume, " -> ", destination, destinationVolume);
 	return destinationVolume;
 };
 
@@ -92,24 +81,20 @@ const httpHandler = (request, response) => {
         request.on('end', () => { 
         	eventHandler(JSON.parse(body)); 
         });
-        response.writeHead(200, {'Content-Type': 'text/html'});
-        response.end('post received');
-        return;
     }
-
-	response.writeHead(200, {'Content-Type': 'text/plain'});
-	response.end('nothing to do');
+    response.end();
 };
 
 const server = http.createServer(httpHandler);
 
-httpRequest(SONOS_API_BASE_URL + "/zones")
+httpRequest(config.nodeSonosHttpApi + "/zones")
 	.then((zones) => {
 		topologyChange(JSON.parse(zones));
 	})
 	.catch(() => {
-		console.log('sonos api not yet started');
+		console.log("sonos api not yet started, just start it");
 	})
 	.then(() => {
-		server.listen(PORT);
+		server.listen(config.port);
+		console.log("server started on port " + config.port);
 	});
