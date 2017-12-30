@@ -1,0 +1,25 @@
+{
+  "name": "node-sonos-volume-sync",
+  "version": "1.0.0",
+  "description": "Sync volume in sonos groups via https://github.com/jishi/node-sonos-http-api",
+  "license": "ISC",
+  "keywords": [
+    "node-sonos-http-api",
+    "sonos"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stickcgn/node-sonos-volume-syncgit"
+  },
+  "bugs": {
+    "url": "https://github.com/stickcgn/node-sonos-volume-sync/issues"
+  },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },  
+  "dependencies": {}
+}
