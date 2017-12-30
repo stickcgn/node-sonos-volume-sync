@@ -48,6 +48,12 @@ config.json
 - `nodeSonosHttpApi` is the base url where [node-sonos-http-api](https://github.com/jishi/node-sonos-http-api) listens.
 - `volumeFactors` is a hash of optional factors to harmonize between different room setups. In this example "Wohnzimmer" needs to be 20% louder that my other rooms to feel right.
 
+## Starting
+
+```
+node server.js
+```
+
 ## Serveral groups at once
 
 Theoretically this app should work with different groups at the same time. But I did not test this. Please let me know if it doen't work.
