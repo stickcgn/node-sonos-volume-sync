@@ -1,5 +1,6 @@
 const http = require('http');
 const config = require('./config.json');
+const assert = require('assert');
 
 var groups = [];
 var syncTimeout = null;
@@ -20,10 +21,10 @@ const httpRequest = function(url) {
 };
 
 const topologyChange = (zones) => {
-	groups = zones.filter((zone) => zone.members.length > 1);
+	groups = zones;
 	console.log("topologyChange, now " + groups.length + " groups");
 	// Sync all rooms with the coordinator	
-	groups.forEach((group) => {
+	groups.filter((zone) => zone.members.length > 1).forEach((group) => {
 		syncGroup(group, group.coordinator.state.volume, group.coordinator.roomName);
 	});
 };
@@ -32,18 +33,52 @@ const volumeChange = (data) => {
 	if(data.previousVolume == data.newVolume) {
 		return;
 	}
-	//console.log("> " + data.roomName + " " + data.previousVolume + " -> " + data.newVolume);
+	
+	// Find group/member in cached data
+	var member;
 	const groupToSync = groups.find((group) => {
-		return group.members.find((member) => member.roomName === data.roomName ) !== undefined;
+		member = group.members.find((member) => member.roomName === data.roomName);
+		return member !== undefined;
 	});
-	if(groupToSync) {
-		clearTimeout(syncTimeout);
-		syncTimeout = setTimeout(() => {
-			syncTimeout = null;
+	assert(member, "Member not found");
+	assert(groupToSync, "Group to sync not found");
+
+	// Store new volume to cached member
+	member.state.volume = data.newVolume;
+
+	clearTimeout(syncTimeout);
+	syncTimeout = setTimeout(() => {
+		syncTimeout = null;
+		if(groupToSync.members.length > 1) {
 			syncGroup(groupToSync, data.newVolume, data.roomName);
-		}, config.syncLatency);
-	}
+		} else if(groupToSync.coordinator.state.playbackState !== "PLAYING" && data.newVolume > data.previousVolume) {
+			joinPlayer(groupToSync.coordinator.roomName);
+		}
+	}, config.syncLatency);
 };
+
+const joinPlayer = (roomName) => {
+	console.log("Volume up pressed on " + roomName + ", searching for playback to join");
+	
+	// Find playing groupt
+	const playingGroup = groups.find((group) => group.coordinator.state.playbackState === 'PLAYING');
+	if(playingGroup) {
+		const coordinatorMember = playingGroup.members.find((member) => member.roomName === playingGroup.coordinator.roomName);
+		const volume = harmonizeVolume(playingGroup.coordinator.roomName, roomName, coordinatorMember.state.volume);
+		console.log('will join ' + playingGroup.coordinator.roomName + ' @ ' + volume);
+
+		httpRequest(config.nodeSonosHttpApi + "/" + roomName + "/volume/" + volume)
+			.then(() => {
+				return httpRequest(config.nodeSonosHttpApi + "/" + roomName + "/join/" + playingGroup.coordinator.roomName);
+			})
+			.catch((err) => {
+				console.log("error while joining", err);
+			})
+			.then(() => {
+				console.log("joined");
+			});
+	}
+}
 
 const syncGroup = (group, newVolume, origin) => {
 	const promises = group.members
@@ -52,6 +87,7 @@ const syncGroup = (group, newVolume, origin) => {
 			const destinationVolume = harmonizeVolume(origin, member.roomName, newVolume);
 			return httpRequest(config.nodeSonosHttpApi + "/" + member.roomName + "/volume/" + destinationVolume);
 		});
+	//console.log("###", promises.length);
 	Promise.all(promises).catch((err) => {
 		console.log('syncing error', err);
 	});
