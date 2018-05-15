@@ -51,12 +51,14 @@ const volumeChange = (data) => {
 		syncTimeout = null;
 		if(groupToSync.members.length > 1) {
 			syncGroup(groupToSync, data.newVolume, data.roomName);
-		} else if(groupToSync.coordinator.state.playbackState !== "PLAYING" && data.newVolume > data.previousVolume) {
-			joinPlayer(groupToSync.coordinator.roomName);
-		}
+		} 
+		// else if(groupToSync.coordinator.state.playbackState !== "PLAYING" && data.newVolume > data.previousVolume) {
+		// 	joinPlayer(groupToSync.coordinator.roomName);
+		// }
 	}, config.syncLatency);
 };
 
+/*
 const joinPlayer = (roomName) => {
 	console.log("Volume up pressed on " + roomName + ", searching for playback to join");
 	
@@ -79,6 +81,7 @@ const joinPlayer = (roomName) => {
 			});
 	}
 }
+/**/
 
 const syncGroup = (group, newVolume, origin) => {
 	const promises = group.members
