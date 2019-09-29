@@ -1,5 +1,6 @@
 const http = require('http');
 const config = require('./config.json');
+const assert = require('assert');
 
 var groups = [];
 var syncTimeout = null;
@@ -20,10 +21,10 @@ const httpRequest = function(url) {
 };
 
 const topologyChange = (zones) => {
-	groups = zones.filter((zone) => zone.members.length > 1);
+	groups = zones;
 	console.log("topologyChange, now " + groups.length + " groups");
 	// Sync all rooms with the coordinator	
-	groups.forEach((group) => {
+	groups.filter((zone) => zone.members.length > 1).forEach((group) => {
 		syncGroup(group, group.coordinator.state.volume, group.coordinator.roomName);
 	});
 };
@@ -32,17 +33,26 @@ const volumeChange = (data) => {
 	if(data.previousVolume == data.newVolume) {
 		return;
 	}
-	//console.log("> " + data.roomName + " " + data.previousVolume + " -> " + data.newVolume);
+	
+	// Find group/member in cached data
+	var member;
 	const groupToSync = groups.find((group) => {
-		return group.members.find((member) => member.roomName === data.roomName ) !== undefined;
+		member = group.members.find((member) => member.roomName === data.roomName);
+		return member !== undefined;
 	});
-	if(groupToSync) {
-		clearTimeout(syncTimeout);
-		syncTimeout = setTimeout(() => {
-			syncTimeout = null;
+	assert(member, "Member not found");
+	assert(groupToSync, "Group to sync not found");
+
+	// Store new volume to cached member
+	member.state.volume = data.newVolume;
+
+	clearTimeout(syncTimeout);
+	syncTimeout = setTimeout(() => {
+		syncTimeout = null;
+		if(groupToSync.members.length > 1) {
 			syncGroup(groupToSync, data.newVolume, data.roomName);
-		}, config.syncLatency);
-	}
+		} 
+	}, config.syncLatency);
 };
 
 const syncGroup = (group, newVolume, origin) => {

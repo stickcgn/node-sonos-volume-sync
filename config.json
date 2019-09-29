@@ -3,6 +3,6 @@
 	"syncLatency": 1000,
 	"nodeSonosHttpApi": "http://localhost:5005",
 	"volumeFactors": {
-		"Wohnzimmer": 1.2
+		"Wohnzimmer": 1.0
 	}
 }
