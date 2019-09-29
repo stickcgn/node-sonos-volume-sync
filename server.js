@@ -52,36 +52,8 @@ const volumeChange = (data) => {
 		if(groupToSync.members.length > 1) {
 			syncGroup(groupToSync, data.newVolume, data.roomName);
 		} 
-		// else if(groupToSync.coordinator.state.playbackState !== "PLAYING" && data.newVolume > data.previousVolume) {
-		// 	joinPlayer(groupToSync.coordinator.roomName);
-		// }
 	}, config.syncLatency);
 };
-
-/*
-const joinPlayer = (roomName) => {
-	console.log("Volume up pressed on " + roomName + ", searching for playback to join");
-	
-	// Find playing groupt
-	const playingGroup = groups.find((group) => group.coordinator.state.playbackState === 'PLAYING');
-	if(playingGroup) {
-		const coordinatorMember = playingGroup.members.find((member) => member.roomName === playingGroup.coordinator.roomName);
-		const volume = harmonizeVolume(playingGroup.coordinator.roomName, roomName, coordinatorMember.state.volume);
-		console.log('will join ' + playingGroup.coordinator.roomName + ' @ ' + volume);
-
-		httpRequest(config.nodeSonosHttpApi + "/" + roomName + "/volume/" + volume)
-			.then(() => {
-				return httpRequest(config.nodeSonosHttpApi + "/" + roomName + "/join/" + playingGroup.coordinator.roomName);
-			})
-			.catch((err) => {
-				console.log("error while joining", err);
-			})
-			.then(() => {
-				console.log("joined");
-			});
-	}
-}
-/**/
 
 const syncGroup = (group, newVolume, origin) => {
 	const promises = group.members
@@ -90,7 +62,6 @@ const syncGroup = (group, newVolume, origin) => {
 			const destinationVolume = harmonizeVolume(origin, member.roomName, newVolume);
 			return httpRequest(config.nodeSonosHttpApi + "/" + member.roomName + "/volume/" + destinationVolume);
 		});
-	//console.log("###", promises.length);
 	Promise.all(promises).catch((err) => {
 		console.log('syncing error', err);
 	});
